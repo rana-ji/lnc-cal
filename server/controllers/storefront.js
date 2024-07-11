@@ -33,9 +33,7 @@ export const createVariant = async (req, res) => {
             id
             title
             price
-            inventoryItem {
-              tracked
-            }
+            inventoryPolicy
           }
           userErrors {
             field
@@ -46,9 +44,7 @@ export const createVariant = async (req, res) => {
         variables : {
           "input": {
             "price": price,
-            "inventoryItem": {
-              "tracked": false
-            },
+            "inventoryPolicy": "CONTINUE",
             "productId": `gid://shopify/Product/${productId}`,
             "options": `cal-${new mongoose.Types.ObjectId().toString()}`
           }
