@@ -3,10 +3,10 @@ import clientProvider from "../../utils/clientProvider.js";
 import mongoose from "mongoose";
 
 export const createVariant = async (req, res) => {
-  console.log("URL hit");
-
+  
   const { productId, price } = req.body;
-
+  console.log("URL hit",productId,price);
+  
   if (!productId || !price) {
     return res.status(400).json({ error: "Missing required fields: productId, price" });
   }
@@ -15,6 +15,30 @@ export const createVariant = async (req, res) => {
     const { client: graphqlClient } = await clientProvider.offline.graphqlClient({
       shop: res.locals.user_shop,
     });
+
+    const productData = await graphqlClient.request(
+      `{
+        product(id: "gid://shopify/Product/${productId}") {
+          id
+          title
+          options {
+            name
+            values
+          }
+        }
+      }`
+    );
+
+    const product = productData.data.product;
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const optionsLength = product.options.length;
+    // console.log("*************************", optionsLength);
+
+    const generatedOptions = Array.from({ length: optionsLength }, () => `cal-${new mongoose.Types.ObjectId().toString()}`);
+    // console.log("Generated Options:", generatedOptions);
 
     const data = await graphqlClient.request(
       `mutation productVariantCreate($input: ProductVariantInput!) {
@@ -41,7 +65,7 @@ export const createVariant = async (req, res) => {
             "price": price,
             "inventoryPolicy": "CONTINUE",
             "productId": `gid://shopify/Product/${productId}`,
-            "options": `cal-${new mongoose.Types.ObjectId().toString()}`
+            "options": generatedOptions
           }
         }
       }
@@ -50,6 +74,7 @@ export const createVariant = async (req, res) => {
     if (data.errors) {
       return res.status(500).json({ error: "Failed to create variant" });
     }
+    // console.log(data.data.productVariantCreate.userErrors)
     var fullid = data.data.productVariantCreate.productVariant.id.split("/ProductVariant/")[1]
 
     res.status(201).json(fullid);
@@ -76,13 +101,13 @@ export const returnPrices = async (req, res) => {
       return res.status(404).json({ error: "Product calculator not found" });
     }
 
-    console.log("calculators product", calculators);
+    // console.log("calculators product", calculators);
 
     // Getting pricings as per calculator
     const pricing = await Price.findById(calculators.price);
     const paper = await Paper.findById(calculators.paper);
 
-    console.log("price product", pricing, paper);
+    // console.log("price product", pricing, paper);
 
     if (!pricing) {
       return res.status(404).json({ error: "Pricing not found" });
@@ -103,7 +128,7 @@ export const returnPrices = async (req, res) => {
       price: paper.price,
     }));
 
-    console.log("price product", priceData, paperData);
+    // console.log("price product", priceData, paperData);
 
     res
       .status(200)
